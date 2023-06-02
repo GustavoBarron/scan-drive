@@ -3,8 +3,12 @@ import {
   Auth,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
+  updateCurrentUser
 } from '@angular/fire/auth';
+import {ToastrService} from 'ngx-toastr';
 import { Router } from '@angular/router';
+import { updateProfile } from 'firebase/auth';
+import { Toast } from 'ngx-toastr';
 import { OpenAIApi, Configuration } from 'openai';
 import { environment } from 'src/environments/environment';
 
@@ -19,8 +23,8 @@ const openai = new OpenAIApi(configuration);
 export class GenApiService {
   constructor(
     private auth: Auth,
-    private storage:Storage,
-    private router: Router
+    private router: Router,
+    private toast: ToastrService
     ) {}
 
   async generateChat(message: string) {
@@ -34,12 +38,18 @@ export class GenApiService {
     return data;
   }
 
-  register({ email, password }: any) {
+  register({ email, password, nombre }: any) {
     return createUserWithEmailAndPassword(this.auth, email, password)
     .then((res) => {
       console.log(res)
+      this.toast.success(`Bienvenido ${res.user.displayName}`);
       this.router.navigate(['/chat']);
-      // this.storage.setItem('uuid', res.user.);
+      localStorage.setItem('uuid', res.user.uid);
+      const user = this.auth.currentUser;
+      if(user){
+        updateProfile(user, {displayName: nombre});
+        res.user.displayName ? localStorage.setItem('displayName', res.user.displayName) : '';
+      }
     })
     .catch((error) => {
       console.log(error)
@@ -50,7 +60,34 @@ export class GenApiService {
 
   login({ email, password }: any) {
     return signInWithEmailAndPassword(this.auth, email, password)
-    .then((response) => console.log('response register', response))
+    .then((response) => {
+      this.setToast('success',`Bienvenido ${response.user.displayName}`);
+      console.log('response login', response)
+      localStorage.setItem('uuid', response.user.uid);
+      response.user.displayName ? localStorage.setItem('displayName', response.user.displayName) : '';
+      this.router.navigate(['home']);
+    })
     .catch((error) => console.log(error));
+  }
+
+  setToast(type:string ,message:string, config:any = null ){
+    if(config && config.hasOwnProperty('logout')){
+      this.toast.toastrConfig.positionClass = config.positionClass;
+
+    }
+    switch(type){
+      case 'success':
+        this.toast.success(message);
+      break;
+      case 'error':
+        this.toast.error(message);
+      break;
+      case 'info':
+        this.toast.info(message);
+      break;
+      case 'warning':
+        this.toast.warning(message);
+      break;
+    }
   }
 }
