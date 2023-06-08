@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { Injectable, OnInit } from '@angular/core';
 import {
   Auth,
   createUserWithEmailAndPassword,
@@ -11,21 +11,41 @@ import { updateProfile } from 'firebase/auth';
 import { Toast } from 'ngx-toastr';
 import { OpenAIApi, Configuration } from 'openai';
 import { environment } from 'src/environments/environment';
+import { Database, onValue } from '@angular/fire/database';
+import { ref, set } from 'firebase/database';
+import { Message } from '../interface';
 
 const configuration = new Configuration({
-  apiKey: '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',
+  apiKey: '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',
 });
 const openai = new OpenAIApi(configuration);
 
 @Injectable({
   providedIn: 'root',
 })
-export class GenApiService {
+export class GenApiService implements OnInit{
+  uuid:string = '';
+  messages!: [];
   constructor(
     private auth: Auth,
+    private database: Database,
     private router: Router,
     private toast: ToastrService
-    ) {}
+    ) {      
+    const user = localStorage.getItem('uuid');
+    console.log('user', user);
+    if(user){
+      this.uuid = user;
+    } }
+
+
+    ngOnInit(): void {
+      const user = localStorage.getItem('uuid');
+      console.log('user', user);
+      if(user){
+        this.uuid = user;
+      }
+    }
 
   async generateChat(message: string) {
     const completion = await openai.createChatCompletion({
@@ -70,6 +90,12 @@ export class GenApiService {
     .catch((error) => console.log(error));
   }
 
+  setMessages (messages:Message[]){
+    set(ref(this.database, this.uuid), {
+      'messages': messages
+    });
+  }
+  
   setToast(type:string ,message:string, config:any = null ){
     if(config && config.hasOwnProperty('logout')){
       this.toast.toastrConfig.positionClass = config.positionClass;
